@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GAI Free Advanced Workspace</title>
+    <style>
+        :root {
+            --bg-deep: #0a0a0c;
+            --bg-sidebar: #121215;
+            --bg-surface: #1a1a1f;
+            --bg-pill: #222227;
+            --border-line: #2a2a30;
+            --txt-primary: #f5f5f7;
+            --txt-secondary: #9ea4b0;
+            --accent-glow: #7da6ff;
+            --accent-green: #34c759;
+            --accent-red: #ff453a;
+            --user-bubble: #252630;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-deep); color: var(--txt-primary); height: 100vh; display: flex; overflow: hidden; }
+
+        /* Auth Screen Styling */
+        .auth-overlay { position: fixed; top:0; left:0; width:100vw; height:100vh; background: var(--bg-deep); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .auth-card { background: var(--bg-sidebar); border: 1px solid var(--border-line); border-radius: 20px; padding: 40px; width: 100%; max-width: 420px; box-shadow: 0 12px 40px rgba(0,0,0,0.6); }
+        .auth-card h2 { margin-bottom: 24px; text-align: center; color: var(--accent-glow); font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+        .auth-field { margin-bottom: 20px; }
+        .auth-field label { display: block; font-size: 11px; text-transform: uppercase; margin-bottom: 8px; color: var(--txt-secondary); letter-spacing: 1px; }
+        .auth-field input { width: 100%; padding: 14px; background: var(--bg-deep); border: 1px solid var(--border-line); border-radius: 10px; color: white; outline: none; font-size: 16px; transition: border 0.2s; }
+        .auth-field input:focus { border-color: var(--accent-glow); }
+        .auth-btn { width: 100%; padding: 14px; background: var(--accent-glow); color: var(--bg-deep); font-weight: bold; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; margin-top: 10px; transition: opacity 0.2s; }
+        .auth-btn:hover { opacity: 0.9; }
+        .auth-switch { text-align: center; margin-top: 20px; font-size: 14px; color: var(--txt-secondary); cursor: pointer; }
+        .auth-switch span { color: var(--accent-glow); text-decoration: underline; }
+
+        /* Workspace Core Window Shell */
+        .workspace { display: flex; width: 100%; height: 100%; position: relative; }
+
+        /* Left Navigation Panel */
+        .sidebar { width: 300px; background: var(--bg-sidebar); border-right: 1px solid var(--border-line); display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 90; }
+        .sidebar-header { padding: 24px 20px; border-bottom: 1px solid var(--border-line); display: flex; justify-content: space-between; align-items: center; }
+        .brand-title { font-size: 22px; font-weight: 800; color: var(--accent-glow); letter-spacing: -0.5px; }
+        .new-chat-btn { background: var(--bg-surface); border: 1px solid var(--border-line); color: var(--txt-primary); padding: 10px 16px; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+        .new-chat-btn:hover { background: var(--border-line); transform: translateY(-1px); }
+
+        /* Clean Sidebar Chat Items */
+        .chat-list { flex: 1; overflow-y: auto; padding: 16px 12px; display: flex; flex-direction: column; gap: 6px; }
+        .chat-item { padding: 12px 14px; border-radius: 12px; background: transparent; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid transparent; transition: all 0.2s; position: relative; }
+        .chat-item:hover, .chat-item.active { background: var(--bg-surface); border-color: var(--border-line); }
+        .chat-item-title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; color: var(--txt-primary); font-weight: 500; }
+        
+        .chat-item-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.2s; }
+        .chat-item:hover .chat-item-actions { opacity: 1; }
+        
+        .chat-action-icon-btn { background: transparent; border: none; color: var(--txt-secondary); cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+        .chat-action-icon-btn:hover { background: var(--bg-deep); }
+        .chat-action-icon-btn.rename:hover { color: var(--accent-glow); }
+        .chat-action-icon-btn.delete:hover { color: var(--accent-red); }
+
+        .sidebar-footer { padding: 20px; border-top: 1px solid var(--border-line); background: rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; }
+        .user-badge { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+        .logout-link { font-size: 13px; color: var(--accent-red); cursor: pointer; font-weight: 500; }
+
+        /* Main Workspace Stage */
+        .main-stage { flex: 1; display: flex; flex-direction: column; height: 100%; background: var(--bg-deep); position: relative; }
+        
+        /* Mobile Top Header */
+        .mobile-bar { height: 60px; width: 100%; background: var(--bg-sidebar); border-bottom: 1px solid var(--border-line); display: none; align-items: center; padding: 0 20px; gap: 16px; z-index: 85; }
+        .menu-toggle { background: transparent; border: none; color: var(--txt-primary); cursor: pointer; }
+
+        /* Main Chat Window Display Log */
+        .chat-log { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 40px 24px; display: flex; flex-direction: column; gap: 32px; max-width: 900px; width: 100%; margin: 0 auto; -webkit-overflow-scrolling: touch; }
+        .chat-bubble-row { display: flex; flex-direction: column; max-width: 82%; animation: bubbleIn 0.3s cubic-bezier(0.2, 1, 0.2, 1); }
+        @keyframes bubbleIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .chat-bubble-row.user-row { align-self: flex-end; background-color: var(--user-bubble); padding: 16px 24px; border-radius: 24px 24px 4px 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .chat-bubble-row.ai-row { align-self: flex-start; width: 100%; }
+        
+        .bubble-speaker { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .user-row .bubble-speaker { color: var(--accent-glow); }
+        .ai-row .bubble-speaker { color: var(--accent-green); }
+        
+        .bubble-body { font-size: 16px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; color: #e1e3e6; }
+        
+        /* Custom Hyperlink Design Overrides */
+        .bubble-body a { font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: var(--accent-glow); text-decoration: underline; font-weight: 500; transition: color 0.15s; }
+        .bubble-body a:hover { color: #ffffff; }
+
+        .ai-generated-img { max-width: 100%; border-radius: 16px; border: 1px solid var(--border-line); margin-top: 12px; max-height: 480px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); display: block; background-color: #151518; }
+
+        /* Premium Code Formatting UI Blocks */
+        .code-block-wrapper { background: #0a0a0d; border: 1px solid var(--border-line); border-radius: 12px; margin: 18px 0; overflow: hidden; }
+        .code-block-header { background: #121215; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-line); }
+        .code-lang-label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--txt-secondary); font-family: monospace; }
+        .code-copy-btn { background: var(--bg-surface); border: 1px solid var(--border-line); color: var(--txt-primary); padding: 6px 14px; font-size: 12px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.15s; }
+        .code-copy-btn:hover { background: var(--border-line); color: white; }
+        .code-block-wrapper pre { padding: 20px; overflow-x: auto; margin: 0; }
+        .code-block-wrapper code { font-family: 'SFMono-Regular', Consolas, Menlo, monospace; font-size: 14px; color: #e4e4e7; }
+
+        /* Cleaned Pill Floating Input Area Container */
+        .footer-tray { padding: 24px 24px 40px 24px; background: linear-gradient(transparent, var(--bg-deep) 40%); width: 100%; }
+        .input-deck { max-width: 760px; margin: 0 auto; display: flex; background: var(--bg-pill); border: 1px solid transparent; border-radius: 32px; padding: 6px 14px; align-items: center; position: relative; box-shadow: 0 8px 32px rgba(0,0,0,0.4); transition: border 0.25s; }
+        .input-deck:focus-within { border-color: #44444f; }
+        
+        .deck-action-trigger { background: transparent; border: none; color: var(--txt-secondary); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 50%; transition: all 0.2s; }
+        .deck-action-trigger:hover { color: var(--txt-primary); background: rgba(255,255,255,0.05); }
+        .deck-action-trigger.mic-active { color: var(--accent-red); background: rgba(255, 69, 58, 0.15); animation: micPulse 1.5s infinite; }
+        
+        @keyframes micPulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        
+        textarea.main-input { flex: 1; background: transparent; border: none; outline: none; color: white; font-size: 16px; padding: 12px 14px; resize: none; height: 44px; max-height: 180px; line-height: 20px; }
+
+        /* Action Plus Drawer Element Selection Flyout */
+        .plus-action-drawer { position: absolute; bottom: 64px; left: 16px; background: var(--bg-surface); border: 1px solid var(--border-line); border-radius: 14px; padding: 8px; width: 220px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: none; flex-direction: column; z-index: 200; }
+        .drawer-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 14px; color: var(--txt-primary); cursor: pointer; border-radius: 8px; transition: background 0.15s; }
+        .drawer-item:hover { background: rgba(255,255,255,0.05); }
+        .drawer-item.active { color: var(--accent-glow); font-weight: bold; }
+
+        /* Custom Popup Clean Confirm/Cancel Div Windows */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1500; display: none; justify-content: center; align-items: center; }
+        .modal-box { background: var(--bg-sidebar); border: 1px solid var(--border-line); border-radius: 16px; width: 100%; max-width: 380px; padding: 24px; box-shadow: 0 16px 48px rgba(0,0,0,0.7); text-align: left; }
+        .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 12px; color: var(--txt-primary); }
+        .modal-body { font-size: 14px; color: var(--txt-secondary); margin-bottom: 20px; line-height: 1.5; }
+        .modal-input-field { width: 100%; padding: 12px; background: var(--bg-deep); border: 1px solid var(--border-line); border-radius: 8px; color: white; font-size: 15px; outline: none; margin-bottom: 20px; }
+        .modal-input-field:focus { border-color: var(--accent-glow); }
+        .modal-action-row { display: flex; gap: 12px; justify-content: flex-end; }
+        .modal-btn { padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; transition: opacity 0.15s; }
+        .modal-btn.confirm { background: var(--accent-glow); color: var(--bg-deep); }
+        .modal-btn.danger { background: var(--accent-red); color: white; }
+        .modal-btn.cancel { background: var(--bg-surface); color: var(--txt-primary); border: 1px solid var(--border-line); }
+        .modal-btn:hover { opacity: 0.9; }
+
+        .loader-pulse { display: inline-block; animation: pulseGlow 1.4s infinite ease-in-out; color: var(--txt-secondary); font-style: italic; font-size: 14px; }
+        @keyframes pulseGlow { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        @media (max-width: 834px) {
+            .sidebar { position: absolute; left: 0; top: 60px; height: calc(100% - 60px); transform: translateX(-100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .mobile-bar { display: flex; }
+            .chat-log { padding: 24px 16px; }
+            .chat-bubble-row { max-width: 92%; }
+            .footer-tray { padding: 16px 16px 24px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="modal-overlay" id="dialog-modal-viewport">
+        <div class="modal-box" id="modal-box-shell"></div>
+    </div>
+
+    <div class="auth-overlay" id="portal-view">
+        <div class="auth-card">
+            <h2 id="portal-title">GAI Access</h2>
+            <form id="portal-form" onsubmit="handlePortalAction(event)">
+                <div class="auth-field">
+                    <label>Username</label>
+                    <input type="text" id="portal-user" required autocomplete="username">
+                </div>
+                <div class="auth-field">
+                    <label>Password</label>
+                    <input type="password" id="portal-pass" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="auth-btn" id="portal-btn">Sign In</button>
+                <div class="auth-switch" onclick="togglePortalMode()" id="portal-switch">Don't have an account? <span>Register</span></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="workspace">
+        <div class="sidebar" id="app-sidebar">
+            <div class="sidebar-header">
+                <div class="brand-title">GAI</div>
+                <button class="new-chat-btn" onclick="startNewThread()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    New Chat
+                </button>
+            </div>
+            
+            <div class="chat-list" id="thread-deck"></div>
+            
+            <div class="sidebar-footer">
+                <div class="user-badge">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    <span id="active-user-display">Guest</span>
+                </div>
+                <div class="logout-link" onclick="triggerSignOut()">Sign Out</div>
+            </div>
+        </div>
+
+        <div class="main-stage">
+            <div class="mobile-bar">
+                <button class="menu-toggle" onclick="toggleMobileMenu()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div class="brand-title" style="font-size: 18px;">GAI Session</div>
+            </div>
+
+            <div class="chat-log" id="viewport-stream"></div>
+
+            <div class="footer-tray">
+                <div class="input-deck">
+                    <button class="deck-action-trigger" onclick="togglePlusDrawer(event)">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                    
+                    <div class="plus-action-drawer" id="plus-action-box">
+                        <div class="drawer-item active" id="drawer-mode-text" onclick="setPipelineModality('text')">Standard Assistant</div>
+                        <div class="drawer-item" id="drawer-mode-image" onclick="setPipelineModality('image')">Deep Thinking Mode</div>
+                    </div>
+
+                    <textarea class="main-input" id="chat-input-bar" placeholder="Ask Gemini..." rows="1" onkeydown="catchInputReturn(event)"></textarea>
+
+                    <button class="deck-action-trigger" id="voice-activation-mic-btn" title="Voice Input" onclick="toggleSpeechToTextEngine()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                    </button>
+
+                    <button class="deck-action-trigger" style="color: var(--accent-glow); margin-left:2px;" onclick="commitUserRequest()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // LIVE BOUND GEMINI KEY
+        const ACC_TOKEN = "AQ.Ab8RN6JSXj77TUM9IV6Tz1jYZzrTe_AejhcPKlhXiCH1ZKAGTA";
+
+        // Global Registry Stores
+        let sessionAccounts = JSON.parse(localStorage.getItem('gai_user_registry')) || {};
+        let systemActiveUser = localStorage.getItem('gai_logged_in_user') || null;
+        let internalThreads = JSON.parse(localStorage.getItem('gai_chat_database')) || {};
+        let workingThreadId = localStorage.getItem('gai_active_thread_id') || null;
+        
+        let interfaceExecutionModality = 'text'; 
+        let isPortalRegisterMode = false;
+        let speechRecognitionSession = null;
+        let isMicRecording = false;
+        let userHasScrolledUp = false;
+
+        window.onload = function() {
+            evaluateSessionState();
+            autoFitBarHeight();
+            setupVoiceRecognitionModule();
+            
+            const logViewport = document.getElementById('viewport-stream');
+            logViewport.addEventListener('scroll', () => {
+                const threshold = 40;
+                const isAtBottom = logViewport.scrollHeight - logViewport.scrollTop <= logViewport.clientHeight + threshold;
+                userHasScrolledUp = !isAtBottom;
+            });
+
+            window.addEventListener('click', function(e) {
+                if (!e.target.closest('.input-deck')) {
+                    document.getElementById('plus-action-box').style.display = 'none';
+                }
+            });
+        };
+
+        // Speech Module Hooks
+        function setupVoiceRecognitionModule() {
+            const SpeechAPIClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechAPIClass) {
+                speechRecognitionSession = new SpeechAPIClass();
+                speechRecognitionSession.continuous = false;
+                speechRecognitionSession.interimResults = false;
+                speechRecognitionSession.lang = 'en-US';
+
+                speechRecognitionSession.onstart = function() {
+                    isMicRecording = true;
+                    document.getElementById('voice-activation-mic-btn').classList.add('mic-active');
+                };
+                speechRecognitionSession.onerror = function() { deactivateVoiceRecordingUI(); };
+                speechRecognitionSession.onend = function() { deactivateVoiceRecordingUI(); };
+                speechRecognitionSession.onresult = function(event) {
+                    const textResultSegment = event.results[0][0].transcript;
+                    const textInput = document.getElementById('chat-input-bar');
+                    textInput.value = textInput.value ? textInput.value + " " + textResultSegment : textResultSegment;
+                    autoFitBarHeight();
+                };
+            }
+        }
+
+        function toggleSpeechToTextEngine() {
+            if (!speechRecognitionSession) {
+                openNoticeDialogBox("Voice Mode Status", "Speech recognition modules are not fully compatible with your current running web browser layout version.");
+                return;
+            }
+            if (isMicRecording) { speechRecognitionSession.stop(); } else { speechRecognitionSession.start(); }
+        }
+
+        function deactivateVoiceRecordingUI() {
+            isMicRecording = false;
+            document.getElementById('voice-activation-mic-btn').classList.remove('mic-active');
+        }
+
+        function closeDialogModal() { document.getElementById('dialog-modal-viewport').style.display = 'none'; }
+
+        function openDeleteConfirmationDialog(threadId) {
+            const shell = document.getElementById('modal-box-shell');
+            shell.innerHTML = `
+                <div class="modal-title">Delete Session?</div>
+                <div class="modal-body">Are you sure you want to delete "${escapeHTML(internalThreads[threadId].title)}"? This action removes all saved chat memory context.</div>
+                <div class="modal-action-row">
+                    <button class="modal-btn cancel" onclick="closeDialogModal()">Cancel</button>
+                    <button class="modal-btn danger" onclick="finalizeThreadDeletion('${threadId}')">Delete</button>
+                </div>`;
+            document.getElementById('dialog-modal-viewport').style.display = 'flex';
+        }
+
+        // Dialog Handlers
+        function openRenameDialog(threadId) {
+            const shell = document.getElementById('modal-box-shell');
+            shell.innerHTML = `
+                <div class="modal-title">Rename Chat Session</div>
+                <div class="modal-body">Input a new title below:</div>
+                <input type="text" class="modal-input-field" id="modal-rename-input" value="${escapeHTML(internalThreads[threadId].title)}" placeholder="Enter title...">
+                <div class="modal-action-row">
+                    <button class="modal-btn cancel" onclick="closeDialogModal()">Cancel</button>
+                    <button class="modal-btn confirm" onclick="finalizeThreadRename('${threadId}')">Save Title</button>
+                </div>`;
+            document.getElementById('dialog-modal-viewport').style.display = 'flex';
+            document.getElementById('modal-rename-input').select();
+        }
+
+        function openNoticeDialogBox(title, bodyText) {
+            const shell = document.getElementById('modal-box-shell');
+            shell.innerHTML = `
+                <div class="modal-title">${title}</div>
+                <div class="modal-body">${bodyText}</div>
+                <div class="modal-action-row">
+                    <button class="modal-btn cancel" onclick="closeDialogModal()">Understood</button>
+                </div>`;
+            document.getElementById('dialog-modal-viewport').style.display = 'flex';
+        }
+
+        // Auth Framework
+        function evaluateSessionState() {
+            const viewportPortal = document.getElementById('portal-view');
+            if (systemActiveUser && sessionAccounts[systemActiveUser]) {
+                viewportPortal.style.display = 'none';
+                document.getElementById('active-user-display').innerText = systemActiveUser;
+                synchronizeThreads();
+            } else {
+                viewportPortal.style.display = 'flex';
+            }
+        }
+
+        // UX Mode Setup
+        function togglePortalMode() {
+            isPortalRegisterMode = !isPortalRegisterMode;
+            document.getElementById('portal-title').innerText = isPortalRegisterMode ? "Create Account" : "GAI Access";
+            document.getElementById('portal-btn').innerText = isPortalRegisterMode ? "Register" : "Sign In";
+            document.getElementById('portal-switch').innerHTML = isPortalRegisterMode ? "Already verified? <span>Sign In</span>" : "Don't have an account? <span>Register</span>";
+        }
+
+        function handlePortalAction(e) {
+            e.preventDefault();
+            const targetUser = document.getElementById('portal-user').value.trim();
+            const targetPass = document.getElementById('portal-pass').value.trim();
+
+            if (isPortalRegisterMode) {
+                if (sessionAccounts[targetUser]) { alert("Username taken."); return; }
+                sessionAccounts[targetUser] = { password: targetPass, threads: [] };
+                localStorage.setItem('gai_user_registry', JSON.stringify(sessionAccounts));
+            } else {
+                if (!sessionAccounts[targetUser] || sessionAccounts[targetUser].password !== targetPass) {
+                    alert("Access Denied: Invalid credentials.");
+                    return;
+                }
+            }
+            systemActiveUser = targetUser;
+            localStorage.setItem('gai_logged_in_user', systemActiveUser);
+            document.getElementById('portal-user').value = '';
+            document.getElementById('portal-pass').value = '';
+            evaluateSessionState();
+        }
+
+        // Threads Sync
+        function synchronizeThreads() {
+            const containerDeck = document.getElementById('thread-deck');
+            containerDeck.innerHTML = '';
+            const localizedKeys = Object.keys(internalThreads).filter(k => internalThreads[k].owner === systemActiveUser);
+
+            if (localizedKeys.length === 0) { startNewThread(); return; }
+            if (!workingThreadId || !internalThreads[workingThreadId] || internalThreads[workingThreadId].owner !== systemActiveUser) {
+                workingThreadId = localizedKeys[0];
+                localStorage.setItem('gai_active_thread_id', workingThreadId);
+            }
+
+            localizedKeys.forEach(id => {
+                const thread = internalThreads[id];
+                const activeStateClass = (id === workingThreadId) ? 'active' : '';
+                containerDeck.innerHTML += `
+                    <div class="chat-item ${activeStateClass}" onclick="switchActiveThread('${id}')">
+                        <div class="chat-item-title">${escapeHTML(thread.title)}</div>
+                        <div class="chat-item-actions">
+                            <button class="chat-action-icon-btn rename" title="Rename Session" onclick="triggerRenameModal(event, '${id}')">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </button>
+                            <button class="chat-action-icon-btn delete" title="Delete Session" onclick="triggerDeleteModal(event, '${id}')">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </button>
+                        </div>
+                    </div>`;
+            });
+            renderActiveDialogueHistory();
+        }
+
+        function triggerSignOut() {
+            localStorage.removeItem('gai_logged_in_user');
+            localStorage.removeItem('gai_active_thread_id');
+            systemActiveUser = null;
+            workingThreadId = null;
+            document.getElementById('portal-view').style.display = 'flex';
+        }
+
+        function startNewThread() {
+            const uniqueId = 't-' + Date.now();
+            internalThreads[uniqueId] = { owner: systemActiveUser, title: "Untitled Session", logs: [] };
+            saveDatabaseToStorage();
+            workingThreadId = uniqueId;
+            localStorage.setItem('gai_active_thread_id', workingThreadId);
+            synchronizeThreads();
+        }
+
+        // Modality Controls (Updated for Deep Thinking Toggle)
+        function togglePlusDrawer(e) {
+            e.stopPropagation();
+            const drawer = document.getElementById('plus-action-box');
+            drawer.style.display = (drawer.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function setPipelineModality(mode) {
+            interfaceExecutionModality = mode;
+            document.querySelectorAll('.drawer-item').forEach(d => d.classList.remove('active'));
+            if (mode === 'image') {
+                document.getElementById('drawer-mode-image').classList.add('active');
+                document.getElementById('chat-input-bar').placeholder = "Enter query in Deep Thinking Mode...";
+            } else {
+                document.getElementById('drawer-mode-text').classList.add('active');
+                document.getElementById('chat-input-bar').placeholder = "Ask Gemini...";
+            }
+            document.getElementById('plus-action-box').style.display = 'none';
+        }
+
+        // Dynamic Text Input Components Fit
+        const textInputArea = document.getElementById('chat-input-bar');
+        function autoFitBarHeight() {
+            textInputArea.style.height = 'auto';
+            textInputArea.style.height = textInputArea.scrollHeight + 'px';
+        }
+        textInputArea.addEventListener('input', autoFitBarHeight);
+
+        function catchInputReturn(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                commitUserRequest();
+            }
+        }
+
+        function toggleMobileMenu() { document.getElementById('app-sidebar').classList.toggle('mobile-open'); }
+        function switchActiveThread(id) {
+            workingThreadId = id;
+            localStorage.setItem('gai_active_thread_id', workingThreadId);
+            synchronizeThreads();
+            document.getElementById('app-sidebar').classList.remove('mobile-open');
+        }
+        function triggerRenameModal(event, id) { event.stopPropagation(); openRenameDialog(id); }
+        function finalizeThreadRename(id) {
+            const newTitleValue = document.getElementById('modal-rename-input').value.trim();
+            if(newTitleValue) { internalThreads[id].title = newTitleValue; saveDatabaseToStorage(); closeDialogModal(); synchronizeThreads(); }
+        }
+        function triggerDeleteModal(event, id) { event.stopPropagation(); openDeleteConfirmationDialog(id); }
+        function finalizeThreadDeletion(id) {
+            delete internalThreads[id]; saveDatabaseToStorage();
+            if (workingThreadId === id) { workingThreadId = null; localStorage.removeItem('gai_active_thread_id'); }
+            closeDialogModal(); synchronizeThreads();
+        }
+
+        function renderActiveDialogueHistory() {
+            const viewTarget = document.getElementById('viewport-stream');
+            viewTarget.innerHTML = '';
+            const activeSession = internalThreads[workingThreadId];
+            if (!activeSession || activeSession.logs.length === 0) {
+                viewTarget.innerHTML = `
+                    <div class="chat-bubble-row ai-row">
+                        <div class="bubble-speaker">GAI Workspace</div>
+                        <div class="bubble-body">GAI is armed and ready. Type a prompt below or click the plus button to turn on Deep Thinking mode.</div>
+                    </div>`;
+                return;
+            }
+            activeSession.logs.forEach(log => {
+                const bubbleRowClass = (log.role === 'user') ? 'user-row' : 'ai-row';
+                const labelTitle = (log.role === 'user') ? 'You' : 'GAI';
+                let elementContent = `<div class="bubble-body">${formatMarkdownBlocks(log.data)}</div>`;
+                viewTarget.innerHTML += `<div class="chat-bubble-row ${bubbleRowClass}"><div class="bubble-speaker">${labelTitle}</div>${elementContent}</div>`;
+            });
+            if (!userHasScrolledUp) { viewTarget.scrollTop = viewTarget.scrollHeight; }
+        }
+
+        // Streaming Sequence Engine (8ms interval)
+        function streamOutputTextSequentially(domElementId, rawFullText, targetThreadId) {
+            const containerNode = document.getElementById(domElementId);
+            if (!containerNode) return;
+
+            const wordsArray = rawFullText.split(/(\s+)/);
+            let currentWordIndex = 0;
+            let currentBuiltString = "";
+
+            const streamTimer = setInterval(() => {
+                if (currentWordIndex < wordsArray.length) {
+                    currentBuiltString += wordsArray[currentWordIndex];
+                    containerNode.innerHTML = `
+                        <div class="bubble-speaker">GAI Network Core</div>
+                        <div class="bubble-body">${formatMarkdownBlocks(currentBuiltString)}</div>`;
+                    
+                    if (!userHasScrolledUp) {
+                        const viewTarget = document.getElementById('viewport-stream');
+                        viewTarget.scrollTop = viewTarget.scrollHeight;
+                    }
+                    currentWordIndex++;
+                } else {
+                    clearInterval(streamTimer);
+                    internalThreads[targetThreadId].logs.push({ role: 'model', type: 'text', data: rawFullText });
+                    saveDatabaseToStorage();
+                }
+            }, 8); 
+        }
+
+        // Native Gemini Unified API Endpoint Pipeline Execution Layer
+        async function commitUserRequest() {
+            const promptString = textInputArea.value.trim();
+            const viewTarget = document.getElementById('viewport-stream');
+
+            if (!promptString) return;
+
+            textInputArea.value = '';
+            textInputArea.style.height = '44px';
+            userHasScrolledUp = false; 
+
+            const localActiveThreadId = workingThreadId;
+
+            if (internalThreads[localActiveThreadId].title === "Untitled Session") {
+                internalThreads[localActiveThreadId].title = promptString.substring(0, 22) + (promptString.length > 22 ? "..." : "");
+            }
+
+            internalThreads[localActiveThreadId].logs.push({ role: 'user', type: 'text', data: promptString });
+            saveDatabaseToStorage();
+            synchronizeThreads();
+
+            const responseTrackingId = 'gai-stream-id-' + Date.now();
+            
+            // Adjust thinking loader display decoration dynamically
+            let standardLoadingLabel = "GAI is processing context parameters...";
+            if (interfaceExecutionModality === 'image') {
+                standardLoadingLabel = "GAI is thinking in deep mode...";
+            }
+
+            viewTarget.innerHTML += `
+                <div class="chat-bubble-row ai-row" id="${responseTrackingId}">
+                    <div class="bubble-speaker">GAI Network Core</div>
+                    <div class="loader-pulse">${standardLoadingLabel}</div>
+                </div>`;
+            viewTarget.scrollTop = viewTarget.scrollHeight;
+
+            try {
+                let modelId = 'gemini-2.5-flash';
+                const targetURL = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${ACC_TOKEN}`;
+                
+                // Conversational context mapping pipeline
+                const conversationContextArray = internalThreads[localActiveThreadId].logs
+                    .filter(l => l.type === 'text')
+                    .map(l => ({
+                        role: l.role === 'user' ? 'user' : 'model',
+                        parts: [{ text: l.data }]
+                    }));
+
+                let baseContextRule = "You are a multilingual expert engine. Interpret and reply to any input queries natively.";
+                
+                // Inject deep reasoning behavioral traits if selected
+                if (interfaceExecutionModality === 'image') {
+                    baseContextRule += " You are operating in Deep Thinking Mode. Provide deep, analytical, highly structured, structured logical chains, and fast solutions.";
+                }
+
+                let bodyPayload = { 
+                    contents: conversationContextArray,
+                    systemInstruction: {
+                        parts: [{ text: baseContextRule }]
+                    }
+                };
+
+                const executionPipeline = await fetch(targetURL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyPayload)
+                });
+
+                const dataResponseMap = await executionPipeline.json();
+                
+                if (dataResponseMap.error) {
+                    throw new Error(dataResponseMap.error.message);
+                }
+                
+                const candidateOutputParts = dataResponseMap.candidates?.[0]?.content?.parts;
+                if (!candidateOutputParts) throw new Error("Null matrix buffers returned from server layers.");
+
+                const textStringValue = candidateOutputParts[0].text;
+                streamOutputTextSequentially(responseTrackingId, textStringValue, localActiveThreadId);
+
+            } catch (runtimeFault) {
+                console.error(runtimeFault);
+                const targetedNode = document.getElementById(responseTrackingId);
+                if (targetedNode) {
+                    targetedNode.style.color = "var(--accent-red)";
+                    targetedNode.innerHTML = `
+                        <div class="bubble-speaker">Core Error Frame</div>
+                        <div class="bubble-body">Operation Failure: ${runtimeFault.message}</div>`;
+                }
+            }
+        }
+
+        // Simple markdown and storage functions
+        function saveDatabaseToStorage() { localStorage.setItem('gai_chat_database', JSON.stringify(internalThreads)); }
+        function escapeHTML(str) { return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+        function copyTargetBufferSegment(buttonElement) {
+            const containerCodeNode = buttonElement.closest('.code-block-wrapper').querySelector('code');
+            navigator.clipboard.writeText(containerCodeNode.innerText).then(() => {
+                buttonElement.innerText = "Copied!";
+                setTimeout(() => { buttonElement.innerText = "Copy"; }, 2000);
+            });
+        }
+
+        function formatMarkdownBlocks(text) {
+            let processedBlock = escapeHTML(text);
+            const blockRegex = /```([a-zA-Z0-9+#-]+)?\n([\s\S]*?)```/g;
+            processedBlock = processedBlock.replace(blockRegex, (match, languageString, codeSnippet) => {
+                const checkedLanguage = languageString ? languageString.trim() : "CODE";
+                return `
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-lang-label">${checkedLanguage}</span>
+                        <button class="code-copy-btn" onclick="copyTargetBufferSegment(this)">Copy</button>
+                    </div>
+                    <pre><code>${codeSnippet}</code></pre>
+                </div>`;
+            });
+            processedBlock = processedBlock.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Regex to format markdown style hyperlinks into clean blank targeted tab elements
+            processedBlock = processedBlock.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+            // Regex to convert raw printed links into clean elements
+            processedBlock = processedBlock.replace(/(?<!href=")(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+
+            return processedBlock;
+        }
+    </script>
+</body>
+</html>
